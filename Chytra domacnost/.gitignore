@@ -1,0 +1,10 @@
+## Ignorovat zkompilované soubory
+bin/
+obj/
+
+## Ignorovat uživatelská nastavení
+.vs/
+.vscode/
+
+## Zachovat data.json pro testování (můžeš smazat tento řádek, pokud nechceš sdílet data)
+# data.json

@@ -1,0 +1,78 @@
+{
+  "Users": [
+    {
+      "Id": 1,
+      "Username": "admin",
+      "Password": "admin123",
+      "Role": 2,
+      "LastLogin": "0001-01-01T00:00:00"
+    },
+    {
+      "Id": 2,
+      "Username": "Simon",
+      "Password": "Simon123",
+      "Role": 1,
+      "LastLogin": "0001-01-01T00:00:00"
+    },
+    {
+      "Id": 3,
+      "Username": "host",
+      "Password": "host123",
+      "Role": 0,
+      "LastLogin": "0001-01-01T00:00:00"
+    }
+  ],
+  "Households": [
+    {
+      "Id": 1,
+      "Name": "M\u016Fj d\u016Fm",
+      "UserId": 1
+    }
+  ],
+  "Rooms": [
+    {
+      "Id": 1,
+      "Name": "Ob\u00FDv\u00E1k",
+      "HouseholdId": 1
+    },
+    {
+      "Id": 2,
+      "Name": "Lo\u017Enice",
+      "HouseholdId": 1
+    },
+    {
+      "Id": 3,
+      "Name": "Kuchyn\u011B",
+      "HouseholdId": 1
+    }
+  ],
+  "Devices": [
+    {
+      "Id": 1,
+      "Name": "Sv\u011Btlo ob\u00FDv\u00E1k",
+      "Type": 0,
+      "State": 0,
+      "PowerConsumption": 60,
+      "CurrentValue": null,
+      "RoomId": 1
+    },
+    {
+      "Id": 2,
+      "Name": "Termostat",
+      "Type": 4,
+      "State": 1,
+      "PowerConsumption": 15,
+      "CurrentValue": 22,
+      "RoomId": 1
+    },
+    {
+      "Id": 3,
+      "Name": "Sv\u011Btlo lo\u017Enice",
+      "Type": 0,
+      "State": 0,
+      "PowerConsumption": 40,
+      "CurrentValue": null,
+      "RoomId": 2
+    }
+  ]
+}
