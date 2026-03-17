@@ -11,6 +11,6 @@ public enum DeviceType
     Kamera = 3,
     Termostat = 4,
     Zabezpeceni = 5,
-    Zvonec = 6,
+    Zvonek = 6,
     Zaluzie = 7
 }

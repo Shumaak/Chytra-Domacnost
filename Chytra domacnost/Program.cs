@@ -13,7 +13,7 @@ class Program
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         Console.WriteLine("╔════════════════════════════════════════╗");
-        Console.WriteLine("║  SIMULÁTOR CHYTRÉ DOMÁCNOSTI - v1.0   ║");
+        Console.WriteLine("║  SIMULÁTOR CHYTRÉ DOMÁCNOSTI           ║");
         Console.WriteLine("╚════════════════════════════════════════╝\n");
 
         // Načtení dat z JSON souboru
@@ -213,22 +213,222 @@ class Program
 
         foreach (var device in db.Devices)
         {
-            var room = db.Rooms.FirstOrDefault(r => r.Id == device.RoomId);
-            var stateIcon = device.State == DeviceState.Zapnuto ? "🟢" :
-                           device.State == DeviceState.Vypnuto ? "🔴" : "⚫";
-
-            Console.WriteLine($"\n{stateIcon} [{device.Id}] {device.Name}");
-            Console.WriteLine($"    Typ: {device.Type}");
-            Console.WriteLine($"    Místnost: {room?.Name ?? "Neznámá"}");
-            Console.WriteLine($"    Stav: {device.State}");
-            Console.WriteLine($"    Spotřeba: {device.PowerConsumption}W");
-
-            if (device.CurrentValue.HasValue)
-                Console.WriteLine($"    Hodnota: {device.CurrentValue}");
+            ShowDevice(device);
         }
 
-        Console.WriteLine("\nStiskni ENTER...");
-        Console.ReadLine();
+        Console.WriteLine("\n1. Vyhledat zařízení");
+        Console.WriteLine("0. zpět");
+        Console.Write("\nVolba: ");
+
+        var choice = Console.ReadLine();
+
+        switch (choice)
+        {
+            case "1":
+                SearchDevice();
+                break;
+            case "0":
+                return;
+            default:
+                Console.WriteLine("Neplatná volba!");
+                ShowDevices();
+                break;
+        }
+    }
+
+    private static void SearchDevice()
+    {
+
+        Console.WriteLine("\n Vyhledat podle:");
+        Console.WriteLine("1. Název");
+        Console.WriteLine("2. Typ");
+        Console.WriteLine("3. Místnost");
+        Console.WriteLine("4. Stav");
+        Console.WriteLine("5. Abecedně");
+        Console.WriteLine("6. spotřeba");
+        Console.WriteLine("0. Zpět");
+
+        Console.Write("\nVolba: ");
+        var choice = Console.ReadLine();
+
+        switch (choice)
+        {
+            case "1":
+                SearchDeviceByName();
+                break;
+            case "2":
+                SearchDeviceByType();
+                break;
+            case "3":
+                SearchDeviceByRoom();
+                break;
+            case "4":
+                SearchDeviceByState();
+                break;
+            case "5":
+                SearchDeviceByAlphabet();
+                break;
+            case "6":
+                SearchDeviceByPower();
+                break;
+            case "0":
+                ShowDevices();
+                break;
+            default:
+                Console.WriteLine("Neplatná volba!");
+                SearchDevice();
+                break;
+        }
+
+    }
+
+
+    private static void SearchDeviceByName()
+    {
+        Console.WriteLine("\nNázev zařízení: ");
+        var name = Console.ReadLine();
+        var devices = db.Devices.Where(d => d.Name.Contains(name ?? "", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (devices.Count == 0)
+        {
+            Console.WriteLine("Nenalezeno žádné zařízení!");
+            return;
+        }
+
+        foreach (var device in devices)
+        {
+            ShowDevice(device);
+        }
+    }
+
+    private static void SearchDeviceByState()
+    {
+        Console.WriteLine("\nStav:");
+        Console.WriteLine("1. Zapnuto");
+        Console.WriteLine("2. Vypnuto");
+        Console.WriteLine("3. Deaktivováno");
+        Console.Write("\nVolba: ");
+        var choice = Console.ReadLine();
+
+        List<Device> devices = new List<Device>();
+
+        switch (choice)
+        {
+            case "1":
+                devices = db.Devices.Where(d => d.State == DeviceState.Zapnuto).ToList();
+                break;
+            case "2":
+                devices = db.Devices.Where(d => d.State == DeviceState.Vypnuto).ToList();
+                break;
+            case "3":
+                devices = db.Devices.Where(d => d.State == DeviceState.Deaktivovano).ToList();
+                break;
+            default:
+                Console.WriteLine("Neplatná volba!");
+                SearchDeviceByState();
+                break;
+        }
+        if (devices.Count == 0)
+        {
+            Console.WriteLine("Nenalezeno žádné zařízení");
+            return;
+        }
+        foreach (var device in devices)
+        {
+            ShowDevice(device);
+        }
+    }
+
+    private static void SearchDeviceByRoom()
+    {
+        Console.WriteLine("\nMístnosti:");
+        foreach (var r in db.Rooms)
+            Console.WriteLine($"{r.Id}. {r.Name}");
+
+        Console.Write("\nID místnosti: ");
+        if (!int.TryParse(Console.ReadLine(), out int roomId) || !db.Rooms.Any(r => r.Id == roomId))
+        {
+            Console.WriteLine("Neplatné ID místnosti!");
+            SearchDeviceByRoom();
+            return;
+        }
+        else
+        {
+            var devices = db.Devices.Where(d => d.RoomId == roomId).ToList();
+            if(devices.Count == 0)
+        {
+            Console.WriteLine("Nenalezeno žádné zařízení!");
+            return;
+        }
+            foreach (var device in devices)
+            {
+                ShowDevice(device);
+            }
+        }
+    }
+
+    private static void SearchDeviceByType()
+    {
+        Console.WriteLine("\nTypy zařízení:");
+        Console.WriteLine("0. Světlo");
+        Console.WriteLine("1. Zásuvka");
+        Console.WriteLine("2. Senzor");
+        Console.WriteLine("3. Kamera");
+        Console.WriteLine("4. Termostat");
+        Console.WriteLine("5. Zabezpečení");
+        Console.WriteLine("6. Zvonek");
+        Console.WriteLine("7. Žaluzie");
+        Console.Write("\nTyp: ");
+        
+        if (!int.TryParse(Console.ReadLine(), out int typeNum) || typeNum < 0 || typeNum > 7)
+        {
+            Console.WriteLine("Neplatný typ!");
+            SearchDeviceByType();
+            return;
+        }
+        else
+        {
+            var devices = db.Devices.Where(d => (int)d.Type == typeNum).ToList();
+            foreach (var device in devices)
+            {
+                ShowDevice(device);
+            }
+        }
+    }
+
+    private static void SearchDeviceByAlphabet()
+    {
+        Console.WriteLine("\nZařízení seřazena podle abecedy:");
+        var devices = db.Devices.OrderBy(d => d.Name).ToList();
+        foreach (var device in devices)
+        {
+            ShowDevice(device);
+        }
+    }
+    private static void SearchDeviceByPower()
+    {
+       Console.WriteLine("\nZařízení seřazena podle spotřeby:");
+        var devices = db.Devices.OrderBy(d => d.PowerConsumption).ToList();
+        foreach (var device in devices)
+        {
+            ShowDevice(device);
+        }
+    }
+
+    private static void ShowDevice(Device device)
+    {
+        var room = db.Rooms.FirstOrDefault(r => r.Id == device.RoomId);
+        var stateIcon = device.State == DeviceState.Zapnuto ? "🟢" :
+                       device.State == DeviceState.Vypnuto ? "🔴" : "⚫";
+
+        Console.WriteLine($"\n{stateIcon} [{device.Id}] {device.Name}");
+        Console.WriteLine($"    Typ: {device.Type}");
+        Console.WriteLine($"    Místnost: {room?.Name ?? "Neznámá"}");
+        Console.WriteLine($"    Stav: {device.State}");
+        Console.WriteLine($"    Spotřeba: {device.PowerConsumption}W");
+
+        if (device.CurrentValue.HasValue)
+            Console.WriteLine($"    Hodnota: {device.CurrentValue}");
     }
 
     static void AddRoom()
@@ -291,9 +491,12 @@ class Program
         Console.WriteLine("2. Senzor");
         Console.WriteLine("3. Kamera");
         Console.WriteLine("4. Termostat");
+        Console.WriteLine("5. Zabezpečení");
+        Console.WriteLine("6. Zvonek");
+        Console.WriteLine("7. Žaluzie");
         Console.Write("\nTyp: ");
 
-        if (!int.TryParse(Console.ReadLine(), out int typeNum) || typeNum < 0 || typeNum > 4)
+        if (!int.TryParse(Console.ReadLine(), out int typeNum) || typeNum < 0 || typeNum > 7)
         {
             Console.WriteLine("Neplatný typ!");
             return;
