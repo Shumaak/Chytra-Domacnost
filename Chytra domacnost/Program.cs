@@ -1,6 +1,7 @@
 using Chytra_domacnost.Data;
 using Chytra_domacnost.Models;
 using Chytra_domacnost.Enums;
+using System.Diagnostics;
 
 namespace Chytra_domacnost;
 
@@ -71,7 +72,7 @@ class Program
                 ShowTestAccounts();
                 break;
             case "0":
-                db.Save(); // Uložíme před ukončením
+                //db.Save(); // Uložíme před ukončením
                 Environment.Exit(0);
                 break;
             default:
@@ -104,7 +105,7 @@ class Program
         {
             currentUser = user;
             user.LastLogin = DateTime.Now;
-            db.Save(); // Uložíme změnu
+            //db.Save(); // Uložíme změnu
 
             Console.WriteLine($"\n✓ Přihlášen jako {user.Username} ({user.Role})");
         }
@@ -126,6 +127,7 @@ class Program
         if (currentUser.Role == UserRole.Spravce)
         {
             Console.WriteLine("6. [ADMIN] Správa uživatelů");
+            Console.WriteLine("7. [ADMIN] Správa pravidel");
         }
 
         Console.WriteLine("0. Odhlásit se");
@@ -162,8 +164,14 @@ class Program
                 else
                     Console.WriteLine("Nemáte oprávnění!");
                 break;
+            case "7":
+                if (currentUser.Role == UserRole.Spravce)
+                    ManageRules();
+                else
+                    Console.WriteLine("Nemáte oprávnění!");
+                break;
             case "0":
-                db.Save(); // Uložíme před odhlášením
+                //db.Save(); // Uložíme před odhlášením
                 currentUser = null;
                 Console.WriteLine("\n✓ Odhlášen");
                 break;
@@ -173,6 +181,570 @@ class Program
         }
     }
 
+    private static void ManageRules()
+    {
+        Console.WriteLine("\n═══ SPRÁVA PRAVIDEL ═══");
+        Console.WriteLine("1. Přidat pravidlo");
+        Console.WriteLine("2. Zobrazit pravidla");
+        Console.WriteLine("3. Vymazat pravidlo");
+        Console.WriteLine("0. Zpět");
+        Console.Write("\nVolba: ");
+
+        switch (Console.ReadLine())
+        {
+            case "1":
+                AddRule();
+                break;
+            case "2":
+                ShowRules();
+                break;
+            case "3":
+                DeleteRule();
+                break;
+            case "0":
+                return;
+            default:
+                Console.WriteLine("Neplatná volba!");
+                ManageRules();
+                break;
+        }
+    }
+
+    private static void DeleteRule()
+    {
+        if (db.Rules.Count == 0)
+        {
+            Console.WriteLine("\nŽádná pravidla k vymazání.");
+            Console.WriteLine("\nStiskni ENTER...");
+            Console.ReadLine();
+            return;
+        }
+
+        Console.WriteLine("\n═══ VYMAZAT PRAVIDLO ═══");
+        for (int i = 0; i < db.Rules.Count; i++)
+        {
+            Console.WriteLine($"[{db.Rules[i].Id}] {db.Rules[i].Name}");
+        }
+
+        Console.Write("\nID pravidla k vymazání (0 = zpět): ");
+        var id = Console.ReadLine();
+        var ruleToDelete = db.Rules.FirstOrDefault(r => r.Id == int.Parse(id ?? "0"));
+        if (ruleToDelete != null)
+        {
+            db.Rules.Remove(ruleToDelete);
+            //db.Save();
+            Console.WriteLine("✓ Pravidlo vymazáno!");
+        }
+        else
+        {
+            Console.WriteLine("Neplatné ID!");
+        }
+    }
+
+    private static void ShowRules()
+    {
+        Console.WriteLine("\n═══ SEZNAM PRAVIDEL ═══");
+
+        if (db.Rules.Count == 0)
+        {
+            Console.WriteLine("Žádná pravidla.");
+            Console.WriteLine("\nStiskni ENTER...");
+            Console.ReadLine();
+            return;
+        }
+
+        for (int i = 0; i < db.Rules.Count; i++)
+        {
+            var rule = db.Rules[i];
+            Console.WriteLine($"\n📋 [{rule.Id}] {rule.Name}");
+
+            try
+            {
+                bool triggerState = rule.Trigger?.Invoke() ?? false;
+                Console.WriteLine($"    Stav triggeru: {(triggerState ? "✅ AKTIVNÍ" : "⏸️  Neaktivní")}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"    Stav triggeru: ❌ Chyba ({ex.Message})");
+            }
+        }
+
+        Console.WriteLine("\nStiskni ENTER...");
+        Console.ReadLine();
+    }
+
+    private static void AddRule()
+    {
+        Console.WriteLine("\nKdyž");
+        Console.WriteLine("1. Zařízení");
+        Console.WriteLine("2. Místnost");
+        Console.WriteLine("3. Domácnost");
+        Console.Write("\nVolba: ");
+        var triggerType = Console.ReadLine();
+        switch (triggerType)
+        {
+            case "1":
+                {
+                    var trigger = SetDeviceTrigger();
+                    var action = SetRuleAction();
+                    var name = SetRuleName();
+                    var newId = SetRuleId();
+                    var rule = new Rule(trigger, name, newId, action);
+                    db.Rules.Add(rule);
+                    // db.Save();
+
+                    break;
+                }
+            case "2":
+                {
+                    var trigger = SetRoomTrigger();
+                    var action = SetRuleAction();
+                    var name = SetRuleName();
+                    var newId = SetRuleId();
+                    var rule = new Rule(trigger, name, newId, action);
+                    db.Rules.Add(rule);
+                     // db.Save();
+
+                    break;
+                }
+            case "3":
+                {
+                    var trigger = SetHouseholdTrigger();
+                    var action = SetRuleAction();
+                    var name = SetRuleName();
+                    var newId = SetRuleId();
+                    var rule = new Rule(trigger, name, newId, action);
+                    db.Rules.Add(rule);
+                    // db.Save();
+
+                    break;
+                }
+        }
+
+    }
+
+    private static int SetRuleId()
+    {
+        Console.WriteLine("\nID pravidla: ");
+        if (!int.TryParse(Console.ReadLine(), out int id))
+        {
+            Console.WriteLine("Neplatné ID!");
+            return SetRuleId();
+        }
+        else
+        {
+            return id;
+        }
+    }
+
+    private static string SetRuleName()
+    {
+        Console.WriteLine("\nNázev pravidla: ");
+        var name = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            Console.WriteLine("Název nesmí být prázdný!");
+            return SetRuleName();
+        }
+        else
+        {
+            return name;
+        }
+    }
+
+    private static Action SetRuleAction()
+    {
+        Console.WriteLine("\nPak");
+        Console.WriteLine("1. Zapni zařízení");
+        Console.WriteLine("2. Vypni zařízení");
+        Console.WriteLine("3. Deaktivuj zařízení");
+        Console.WriteLine("4. Nastav hodnotu zařízení");
+        Console.WriteLine("5. Zapni všechna zařízení v místnosti");
+        Console.WriteLine("6. Vypni všechna zařízení v místnosti");
+        Console.Write("\nVolba: ");
+        var volba = Console.ReadLine();
+
+        switch (volba)
+        {
+            case "1":
+                {
+                    Console.WriteLine("\nID zařízení: ");
+                    var id = Console.ReadLine();
+                    return () =>
+                    {
+                        var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(id ?? "0"));
+                        if (device != null)
+                        {
+                            device.State = DeviceState.Zapnuto;
+                            //db.Save();
+                            Console.WriteLine($"🔔 Pravidlo: {device.Name} zapnuto");
+                        }
+                    };
+                }
+            case "2":
+                {
+                    Console.WriteLine("\nID zařízení: ");
+                    var id = Console.ReadLine();
+                    return () =>
+                    {
+                        var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(id ?? "0"));
+                        if (device != null)
+                        {
+                            device.State = DeviceState.Vypnuto;
+                            //db.Save();
+                            Console.WriteLine($"🔔 Pravidlo: {device.Name} vypnuto");
+                        }
+                    };
+                }
+            case "3":
+                {
+                    Console.WriteLine("\nID zařízení: ");
+                    var id = Console.ReadLine();
+                    return () =>
+                    {
+                        var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(id ?? "0"));
+                        if (device != null)
+                        {
+                            device.State = DeviceState.Deaktivovano;
+                            //db.Save();
+                            Console.WriteLine($"🔔 Pravidlo: {device.Name} deaktivováno");
+                        }
+                    };
+                }
+            case "4": // Set device value
+                {
+                    Console.WriteLine("\nID zařízení: ");
+                    var id = Console.ReadLine();
+                    Console.WriteLine("\nNová hodnota: ");
+                    var value = Console.ReadLine();
+                    return () =>
+                    {
+                        var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(id ?? "0"));
+                        if (device != null)
+                        {
+                            device.CurrentValue = int.Parse(value ?? "0");
+                            //db.Save();
+                            Console.WriteLine($"🔔 Pravidlo: {device.Name} nastaveno na {value}");
+                        }
+                    };
+                }
+            case "5": // Turn on all devices in room
+                {
+                    Console.WriteLine("\nMístnosti:");
+                    foreach (var r in db.Rooms)
+                        Console.WriteLine($"{r.Id}. {r.Name}");
+                    Console.Write("\nID místnosti: ");
+                    var roomId = Console.ReadLine();
+                    return () =>
+                    {
+                        var devicesInRoom = db.Devices.Where(d => d.RoomId == int.Parse(roomId ?? "0")).ToList();
+                        foreach (var device in devicesInRoom)
+                        {
+                            device.State = DeviceState.Zapnuto;
+                        }
+                        //db.Save();
+                        Console.WriteLine($"🔔 Pravidlo: Všechna zařízení v místnosti zapnuta ({devicesInRoom.Count} zařízení)");
+                    };
+                }
+            case "6": // Turn off all devices in room
+                {
+                    Console.WriteLine("\nMístnosti:");
+                    foreach (var r in db.Rooms)
+                        Console.WriteLine($"{r.Id}. {r.Name}");
+                    Console.Write("\nID místnosti: ");
+                    var roomId = Console.ReadLine();
+                    return () =>
+                    {
+                        var devicesInRoom = db.Devices.Where(d => d.RoomId == int.Parse(roomId ?? "0")).ToList();
+                        foreach (var device in devicesInRoom)
+                        {
+                            device.State = DeviceState.Vypnuto;
+                        }
+                        //db.Save();
+                        Console.WriteLine($"🔔 Pravidlo: Všechna zařízení v místnosti vypnuta ({devicesInRoom.Count} zařízení)");
+                    };
+                }
+            default:
+                Console.WriteLine("Neplatná volba!");
+                return SetRuleAction();
+        }
+    }
+
+    private static Func<bool> SetDeviceTrigger()
+    {
+        Console.WriteLine("\nTyp triggeru:");
+        Console.WriteLine("1. Power consumption (spotřeba)");
+        Console.WriteLine("2. State (stav zařízení)");
+        Console.WriteLine("3. Current value (aktuální hodnota)");
+        Console.Write("\nVolba: ");
+        var triggerType = Console.ReadLine();
+
+        // Ask for device ID
+        Console.WriteLine("\nID zařízení: ");
+        var deviceIdStr = Console.ReadLine();
+
+        switch (triggerType)
+        {
+            case "1": // Power consumption
+                {
+                    Console.WriteLine("\n1. > (větší než)");
+                    Console.WriteLine("2. < (menší než)");
+                    Console.WriteLine("3. == (rovná se)");
+                    Console.Write("\nVolba: ");
+                    var condition = Console.ReadLine();
+
+                    Console.WriteLine("\nHodnota (W): ");
+                    var value = Console.ReadLine();
+
+                    return condition switch
+                    {
+                        "1" => () =>
+                        {
+                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
+                            return device != null && device.PowerConsumption > int.Parse(value ?? "0");
+                        }
+                        ,
+                        "2" => () =>
+                        {
+                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
+                            return device != null && device.PowerConsumption < int.Parse(value ?? "0");
+                        }
+                        ,
+                        "3" => () =>
+                        {
+                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
+                            return device != null && device.PowerConsumption == int.Parse(value ?? "0");
+                        }
+                        ,
+                        _ => () => false
+                    };
+                }
+            case "2": // State
+                {
+                    Console.WriteLine("\nStav:");
+                    Console.WriteLine("1. Zapnuto");
+                    Console.WriteLine("2. Vypnuto");
+                    Console.WriteLine("3. Deaktivovano");
+                    Console.Write("\nVolba: ");
+                    var stateChoice = Console.ReadLine();
+
+                    var targetState = stateChoice switch
+                    {
+                        "1" => DeviceState.Zapnuto,
+                        "2" => DeviceState.Vypnuto,
+                        "3" => DeviceState.Deaktivovano,
+                        _ => DeviceState.Vypnuto
+                    };
+
+                    return () =>
+                    {
+                        var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
+                        return device != null && device.State == targetState;
+                    };
+                }
+            case "3": // Current value
+                {
+                    Console.WriteLine("\n1. > (větší než)");
+                    Console.WriteLine("2. < (menší než)");
+                    Console.WriteLine("3. == (rovná se)");
+                    Console.Write("\nVolba: ");
+                    var condition = Console.ReadLine();
+
+                    Console.WriteLine("\nHodnota: ");
+                    var value = Console.ReadLine();
+
+                    return condition switch
+                    {
+                        "1" => () =>
+                        {
+                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
+                            return device != null && device.CurrentValue.HasValue && device.CurrentValue.Value > int.Parse(value ?? "0");
+                        }
+                        ,
+                        "2" => () =>
+                        {
+                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
+                            return device != null && device.CurrentValue.HasValue && device.CurrentValue.Value < int.Parse(value ?? "0");
+                        }
+                        ,
+                        "3" => () =>
+                        {
+                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
+                            return device != null && device.CurrentValue.HasValue && device.CurrentValue.Value == int.Parse(value ?? "0");
+                        }
+                        ,
+                        _ => () => false
+                    };
+                }
+            default:
+                {
+                    Console.WriteLine("Neplatná volba!");
+                    return SetDeviceTrigger();
+                }
+        }
+    }
+
+    private static Func<bool> SetRoomTrigger()
+    {
+        Console.WriteLine("\nMístnosti:");
+        foreach (var r in db.Rooms)
+            Console.WriteLine($"{r.Id}. {r.Name}");
+
+        Console.Write("\nID místnosti: ");
+        var roomIdStr = Console.ReadLine();
+
+        Console.WriteLine("\nTyp triggeru:");
+        Console.WriteLine("1. Celková spotřeba místnosti");
+        Console.WriteLine("2. Počet zapnutých zařízení");
+        Console.WriteLine("3. Všechna zařízení vypnuta");
+        Console.Write("\nVolba: ");
+        var triggerType = Console.ReadLine();
+
+        switch (triggerType)
+        {
+            case "1": // Total power
+                {
+                    Console.WriteLine("\n1. > (větší než)");
+                    Console.WriteLine("2. < (menší než)");
+                    Console.WriteLine("3. == (rovná se)");
+                    Console.Write("\nVolba: ");
+                    var condition = Console.ReadLine();
+
+                    Console.WriteLine("\nHodnota (W): ");
+                    var value = Console.ReadLine();
+
+                    return condition switch
+                    {
+                        "1" => () =>
+                        {
+                            var totalPower = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0")).Sum(d => d.PowerConsumption);
+                            return totalPower > int.Parse(value ?? "0");
+                        }
+                        ,
+                        "2" => () =>
+                        {
+                            var totalPower = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0")).Sum(d => d.PowerConsumption);
+                            return totalPower < int.Parse(value ?? "0");
+                        }
+                        ,
+                        "3" => () =>
+                        {
+                            var totalPower = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0")).Sum(d => d.PowerConsumption);
+                            return totalPower == int.Parse(value ?? "0");
+                        }
+                        ,
+                        _ => () => false
+                    };
+                }
+            case "2": // Active devices count
+                {
+                    Console.WriteLine("\n1. > (více než)");
+                    Console.WriteLine("2. < (méně než)");
+                    Console.WriteLine("3. == (přesně)");
+                    Console.Write("\nVolba: ");
+                    var condition = Console.ReadLine();
+
+                    Console.WriteLine("\nPočet zařízení: ");
+                    var value = Console.ReadLine();
+
+                    return condition switch
+                    {
+                        "1" => () =>
+                        {
+                            var count = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0") && d.State == DeviceState.Zapnuto).Count();
+                            return count > int.Parse(value ?? "0");
+                        }
+                        ,
+                        "2" => () =>
+                        {
+                            var count = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0") && d.State == DeviceState.Zapnuto).Count();
+                            return count < int.Parse(value ?? "0");
+                        }
+                        ,
+                        "3" => () =>
+                        {
+                            var count = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0") && d.State == DeviceState.Zapnuto).Count();
+                            return count == int.Parse(value ?? "0");
+                        }
+                        ,
+                        _ => () => false
+                    };
+                }
+            case "3": // All devices off
+                {
+                    return () =>
+                    {
+                        return db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0")).All(d => d.State == DeviceState.Vypnuto);
+                    };
+                }
+            default:
+                {
+                    Console.WriteLine("Neplatná volba!");
+                    return SetRoomTrigger();
+                }
+        }
+    }
+
+    private static Func<bool> SetHouseholdTrigger()
+    {
+        Console.WriteLine("\nTyp triggeru:");
+        Console.WriteLine("1. Celková spotřeba domácnosti");
+        Console.WriteLine("2. Celkový počet zapnutých zařízení");
+        Console.WriteLine("3. Všechna zařízení vypnuta");
+        Console.Write("\nVolba: ");
+        var triggerType = Console.ReadLine();
+
+        switch (triggerType)
+        {
+            case "1": // Total household power
+                {
+                    Console.WriteLine("\n1. > (větší než)");
+                    Console.WriteLine("2. < (menší než)");
+                    Console.WriteLine("3. == (rovná se)");
+                    Console.Write("\nVolba: ");
+                    var condition = Console.ReadLine();
+
+                    Console.WriteLine("\nHodnota (W): ");
+                    var value = Console.ReadLine();
+
+                    return condition switch
+                    {
+                        "1" => () => db.Devices.Sum(d => d.PowerConsumption) > int.Parse(value ?? "0"),
+                        "2" => () => db.Devices.Sum(d => d.PowerConsumption) < int.Parse(value ?? "0"),
+                        "3" => () => db.Devices.Sum(d => d.PowerConsumption) == int.Parse(value ?? "0"),
+                        _ => () => false
+                    };
+                }
+            case "2": // Total active devices
+                {
+                    Console.WriteLine("\n1. > (více než)");
+                    Console.WriteLine("2. < (méně než)");
+                    Console.WriteLine("3. == (přesně)");
+                    Console.Write("\nVolba: ");
+                    var condition = Console.ReadLine();
+
+                    Console.WriteLine("\nPočet zařízení: ");
+                    var value = Console.ReadLine();
+
+                    return condition switch
+                    {
+                        "1" => () => db.Devices.Count(d => d.State == DeviceState.Zapnuto) > int.Parse(value ?? "0"),
+                        "2" => () => db.Devices.Count(d => d.State == DeviceState.Zapnuto) < int.Parse(value ?? "0"),
+                        "3" => () => db.Devices.Count(d => d.State == DeviceState.Zapnuto) == int.Parse(value ?? "0"),
+                        _ => () => false
+                    };
+                }
+            case "3": // All devices off
+                {
+                    return () => db.Devices.All(d => d.State == DeviceState.Vypnuto);
+                }
+            default:
+                {
+                    Console.WriteLine("Neplatná volba!");
+                    return SetHouseholdTrigger();
+                }
+        }
+    }
     static void ShowRooms()
     {
         Console.WriteLine("\n═══ MÍSTNOSTI ═══");
@@ -355,11 +927,11 @@ class Program
         else
         {
             var devices = db.Devices.Where(d => d.RoomId == roomId).ToList();
-            if(devices.Count == 0)
-        {
-            Console.WriteLine("Nenalezeno žádné zařízení!");
-            return;
-        }
+            if (devices.Count == 0)
+            {
+                Console.WriteLine("Nenalezeno žádné zařízení!");
+                return;
+            }
             foreach (var device in devices)
             {
                 ShowDevice(device);
@@ -379,7 +951,7 @@ class Program
         Console.WriteLine("6. Zvonek");
         Console.WriteLine("7. Žaluzie");
         Console.Write("\nTyp: ");
-        
+
         if (!int.TryParse(Console.ReadLine(), out int typeNum) || typeNum < 0 || typeNum > 7)
         {
             Console.WriteLine("Neplatný typ!");
@@ -407,7 +979,7 @@ class Program
     }
     private static void SearchDeviceByPower()
     {
-       Console.WriteLine("\nZařízení seřazena podle spotřeby:");
+        Console.WriteLine("\nZařízení seřazena podle spotřeby:");
         var devices = db.Devices.OrderBy(d => d.PowerConsumption).ToList();
         foreach (var device in devices)
         {
@@ -421,7 +993,8 @@ class Program
         var stateIcon = device.State == DeviceState.Zapnuto ? "🟢" :
                        device.State == DeviceState.Vypnuto ? "🔴" : "⚫";
 
-        Console.WriteLine($"\n{stateIcon} [{device.Id}] {device.Name}");
+        Console.WriteLine($"\n{stateIcon} {device.Name}");
+        Console.WriteLine($"    ID: {device.Id}");
         Console.WriteLine($"    Typ: {device.Type}");
         Console.WriteLine($"    Místnost: {room?.Name ?? "Neznámá"}");
         Console.WriteLine($"    Stav: {device.State}");
@@ -452,7 +1025,7 @@ class Program
         };
 
         db.Rooms.Add(room);
-        db.Save(); // Uložíme změnu
+        //db.Save(); // Uložíme změnu
 
         Console.WriteLine($"✓ Místnost '{name}' přidána!");
     }
@@ -509,11 +1082,22 @@ class Program
             return;
         }
 
-        var newId = db.Devices.Count > 0 ? db.Devices.Max(d => d.Id) + 1 : 1;
+        Console.Write("ID zařízení: ");
+        if (!int.TryParse(Console.ReadLine(), out int deviceId) || deviceId <= 0)
+        {
+            Console.WriteLine("Neplatné ID zařízení!");
+            return;
+        }
+
+        if (db.Devices.Any(d => d.Id == deviceId))
+        {
+            Console.WriteLine("Zařízení s tímto ID už existuje!");
+            return;
+        }
 
         var device = new Device
         {
-            Id = newId,
+            Id = deviceId,
             Name = name,
             Type = (DeviceType)typeNum,
             State = DeviceState.Vypnuto,
@@ -522,7 +1106,7 @@ class Program
         };
 
         db.Devices.Add(device);
-        db.Save(); // Uložíme změnu
+        //db.Save(); // Uložíme změnu
 
         Console.WriteLine($"✓ Zařízení '{device.Name}' přidáno!");
     }
@@ -583,19 +1167,19 @@ class Program
             case "1":
                 device.State = DeviceState.Zapnuto;
                 Console.WriteLine($"✓ {device.Name} ZAPNUTO");
-                db.Save();
+                //db.Save();
                 break;
             case "2":
                 device.State = DeviceState.Vypnuto;
                 Console.WriteLine($"✓ {device.Name} VYPNUTO");
-                db.Save();
+                //db.Save();
                 break;
             case "3":
                 if (currentUser!.Role == UserRole.Spravce)
                 {
                     device.State = DeviceState.Deaktivovano;
                     Console.WriteLine($"✓ {device.Name} DEAKTIVOVÁNO");
-                    db.Save();
+                    //db.Save();
                 }
                 else
                 {
@@ -669,7 +1253,7 @@ class Program
         };
 
         db.Users.Add(newUser);
-        db.Save();
+        //db.Save();
 
         Console.WriteLine($"✓ Uživatel '{newUser.Username}' vytvořen!");
     }

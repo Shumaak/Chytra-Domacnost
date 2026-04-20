@@ -1,8 +1,4 @@
 namespace Chytra_domacnost.Models;
-
-/// <summary>
-/// Místnost v domácnosti
-/// </summary>
 public class Room
 {
     public int Id { get; set; }

@@ -138,3 +138,43 @@ AI jsem používal na:
 - Občasnou pomoc s kódem
 - Implementace validace
 - Strukturu README.md
+
+---
+
+## 3. milník
+
+### 1. Pravidla
+
+V programu je nově přidaná část pro správu pravidel.
+
+Správa pravidel umožňuje:
+- Přidat nové pravidlo
+- Zobrazit existující pravidla
+- Vymazat pravidlo podle ID
+
+Pravidla jsou rozdělená podle typu triggeru:
+- Zařízení
+- Místnost
+- Domácnost
+
+Každé pravidlo obsahuje:
+- Název pravidla
+- ID pravidla
+- Trigger podmínku
+- Akci, která se má vykonat po splnění podmínky
+
+V zobrazení pravidel jde vidět jestli pravidlo je právě aktivní, ale zařízení se ještě nesimulují.
+
+### 2. Změny
+
+V rámci 3. milníku byly udělány tyto změny:
+- U přidání zařízení se ID už negeneruje automaticky, ale zadává se ručně.
+
+### 3. Potíže
+
+Aktuálně je problém se serializací pravidel do JSON.
+
+Konkrétně:
+- Nelze jednoduše uložit Action a Func<>.
+- Pravidla obsahují Trigger a Action jako funkce, které se normálně neukládají do data.json.
+- Kvůli tomu jsou v částech programu zakomentované volání db.Save(), aby aplikace při ukládání nespadla.

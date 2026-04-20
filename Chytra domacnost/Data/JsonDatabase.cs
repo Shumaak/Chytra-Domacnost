@@ -14,6 +14,8 @@ public class JsonDatabase
     public List<Household> Households { get; set; } = new();
     public List<Room> Rooms { get; set; } = new();
     public List<Device> Devices { get; set; } = new();
+    public List<Rule> Rules { get; set; } = new();
+
 
     /// <summary>
     /// Načte data ze souboru
