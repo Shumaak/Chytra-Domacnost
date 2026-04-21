@@ -72,7 +72,7 @@ class Program
                 ShowTestAccounts();
                 break;
             case "0":
-                //db.Save(); // Uložíme před ukončením
+                db.Save(); // Uložíme před ukončením
                 Environment.Exit(0);
                 break;
             default:
@@ -105,7 +105,7 @@ class Program
         {
             currentUser = user;
             user.LastLogin = DateTime.Now;
-            //db.Save(); // Uložíme změnu
+            db.Save(); // Uložíme změnu
 
             Console.WriteLine($"\n✓ Přihlášen jako {user.Username} ({user.Role})");
         }
@@ -171,7 +171,7 @@ class Program
                     Console.WriteLine("Nemáte oprávnění!");
                 break;
             case "0":
-                //db.Save(); // Uložíme před odhlášením
+                db.Save(); // Uložíme před odhlášením
                 currentUser = null;
                 Console.WriteLine("\n✓ Odhlášen");
                 break;
@@ -232,7 +232,7 @@ class Program
         if (ruleToDelete != null)
         {
             db.Rules.Remove(ruleToDelete);
-            //db.Save();
+            db.Save();
             Console.WriteLine("✓ Pravidlo vymazáno!");
         }
         else
@@ -260,7 +260,7 @@ class Program
 
             try
             {
-                bool triggerState = rule.Trigger?.Invoke() ?? false;
+                bool triggerState = EvaluateRuleTrigger(rule);
                 Console.WriteLine($"    Stav triggeru: {(triggerState ? "✅ AKTIVNÍ" : "⏸️  Neaktivní")}");
             }
             catch (Exception ex)
@@ -289,9 +289,9 @@ class Program
                     var action = SetRuleAction();
                     var name = SetRuleName();
                     var newId = SetRuleId();
-                    var rule = new Rule(trigger, name, newId, action);
+                    var rule = new Rule(name, newId, trigger, action);
                     db.Rules.Add(rule);
-                    // db.Save();
+                    db.Save();
 
                     break;
                 }
@@ -301,9 +301,9 @@ class Program
                     var action = SetRuleAction();
                     var name = SetRuleName();
                     var newId = SetRuleId();
-                    var rule = new Rule(trigger, name, newId, action);
+                    var rule = new Rule(name, newId, trigger, action);
                     db.Rules.Add(rule);
-                     // db.Save();
+                    db.Save();
 
                     break;
                 }
@@ -313,9 +313,9 @@ class Program
                     var action = SetRuleAction();
                     var name = SetRuleName();
                     var newId = SetRuleId();
-                    var rule = new Rule(trigger, name, newId, action);
+                    var rule = new Rule(name, newId, trigger, action);
                     db.Rules.Add(rule);
-                    // db.Save();
+                    db.Save();
 
                     break;
                 }
@@ -352,7 +352,7 @@ class Program
         }
     }
 
-    private static Action SetRuleAction()
+    private static RuleActionDefinition SetRuleAction()
     {
         Console.WriteLine("\nPak");
         Console.WriteLine("1. Zapni zařízení");
@@ -369,63 +369,69 @@ class Program
             case "1":
                 {
                     Console.WriteLine("\nID zařízení: ");
-                    var id = Console.ReadLine();
-                    return () =>
+                    if (!int.TryParse(Console.ReadLine(), out int id))
                     {
-                        var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(id ?? "0"));
-                        if (device != null)
-                        {
-                            device.State = DeviceState.Zapnuto;
-                            //db.Save();
-                            Console.WriteLine($"🔔 Pravidlo: {device.Name} zapnuto");
-                        }
+                        Console.WriteLine("Neplatné ID zařízení!");
+                        return SetRuleAction();
+                    }
+
+                    return new RuleActionDefinition
+                    {
+                        ActionType = RuleActionType.TurnOnDevice,
+                        DeviceId = id
                     };
                 }
             case "2":
                 {
                     Console.WriteLine("\nID zařízení: ");
-                    var id = Console.ReadLine();
-                    return () =>
+                    if (!int.TryParse(Console.ReadLine(), out int id))
                     {
-                        var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(id ?? "0"));
-                        if (device != null)
-                        {
-                            device.State = DeviceState.Vypnuto;
-                            //db.Save();
-                            Console.WriteLine($"🔔 Pravidlo: {device.Name} vypnuto");
-                        }
+                        Console.WriteLine("Neplatné ID zařízení!");
+                        return SetRuleAction();
+                    }
+
+                    return new RuleActionDefinition
+                    {
+                        ActionType = RuleActionType.TurnOffDevice,
+                        DeviceId = id
                     };
                 }
             case "3":
                 {
                     Console.WriteLine("\nID zařízení: ");
-                    var id = Console.ReadLine();
-                    return () =>
+                    if (!int.TryParse(Console.ReadLine(), out int id))
                     {
-                        var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(id ?? "0"));
-                        if (device != null)
-                        {
-                            device.State = DeviceState.Deaktivovano;
-                            //db.Save();
-                            Console.WriteLine($"🔔 Pravidlo: {device.Name} deaktivováno");
-                        }
+                        Console.WriteLine("Neplatné ID zařízení!");
+                        return SetRuleAction();
+                    }
+
+                    return new RuleActionDefinition
+                    {
+                        ActionType = RuleActionType.DeactivateDevice,
+                        DeviceId = id
                     };
                 }
             case "4": // Set device value
                 {
                     Console.WriteLine("\nID zařízení: ");
-                    var id = Console.ReadLine();
-                    Console.WriteLine("\nNová hodnota: ");
-                    var value = Console.ReadLine();
-                    return () =>
+                    if (!int.TryParse(Console.ReadLine(), out int id))
                     {
-                        var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(id ?? "0"));
-                        if (device != null)
-                        {
-                            device.CurrentValue = int.Parse(value ?? "0");
-                            //db.Save();
-                            Console.WriteLine($"🔔 Pravidlo: {device.Name} nastaveno na {value}");
-                        }
+                        Console.WriteLine("Neplatné ID zařízení!");
+                        return SetRuleAction();
+                    }
+
+                    Console.WriteLine("\nNová hodnota: ");
+                    if (!int.TryParse(Console.ReadLine(), out int value))
+                    {
+                        Console.WriteLine("Neplatná hodnota!");
+                        return SetRuleAction();
+                    }
+
+                    return new RuleActionDefinition
+                    {
+                        ActionType = RuleActionType.SetDeviceValue,
+                        DeviceId = id,
+                        Value = value
                     };
                 }
             case "5": // Turn on all devices in room
@@ -434,16 +440,17 @@ class Program
                     foreach (var r in db.Rooms)
                         Console.WriteLine($"{r.Id}. {r.Name}");
                     Console.Write("\nID místnosti: ");
-                    var roomId = Console.ReadLine();
-                    return () =>
+
+                    if (!int.TryParse(Console.ReadLine(), out int roomId))
                     {
-                        var devicesInRoom = db.Devices.Where(d => d.RoomId == int.Parse(roomId ?? "0")).ToList();
-                        foreach (var device in devicesInRoom)
-                        {
-                            device.State = DeviceState.Zapnuto;
-                        }
-                        //db.Save();
-                        Console.WriteLine($"🔔 Pravidlo: Všechna zařízení v místnosti zapnuta ({devicesInRoom.Count} zařízení)");
+                        Console.WriteLine("Neplatné ID místnosti!");
+                        return SetRuleAction();
+                    }
+
+                    return new RuleActionDefinition
+                    {
+                        ActionType = RuleActionType.TurnOnAllDevicesInRoom,
+                        RoomId = roomId
                     };
                 }
             case "6": // Turn off all devices in room
@@ -452,16 +459,17 @@ class Program
                     foreach (var r in db.Rooms)
                         Console.WriteLine($"{r.Id}. {r.Name}");
                     Console.Write("\nID místnosti: ");
-                    var roomId = Console.ReadLine();
-                    return () =>
+
+                    if (!int.TryParse(Console.ReadLine(), out int roomId))
                     {
-                        var devicesInRoom = db.Devices.Where(d => d.RoomId == int.Parse(roomId ?? "0")).ToList();
-                        foreach (var device in devicesInRoom)
-                        {
-                            device.State = DeviceState.Vypnuto;
-                        }
-                        //db.Save();
-                        Console.WriteLine($"🔔 Pravidlo: Všechna zařízení v místnosti vypnuta ({devicesInRoom.Count} zařízení)");
+                        Console.WriteLine("Neplatné ID místnosti!");
+                        return SetRuleAction();
+                    }
+
+                    return new RuleActionDefinition
+                    {
+                        ActionType = RuleActionType.TurnOffAllDevicesInRoom,
+                        RoomId = roomId
                     };
                 }
             default:
@@ -470,7 +478,7 @@ class Program
         }
     }
 
-    private static Func<bool> SetDeviceTrigger()
+    private static RuleTriggerDefinition SetDeviceTrigger()
     {
         Console.WriteLine("\nTyp triggeru:");
         Console.WriteLine("1. Power consumption (spotřeba)");
@@ -481,7 +489,11 @@ class Program
 
         // Ask for device ID
         Console.WriteLine("\nID zařízení: ");
-        var deviceIdStr = Console.ReadLine();
+        if (!int.TryParse(Console.ReadLine(), out int deviceId))
+        {
+            Console.WriteLine("Neplatné ID zařízení!");
+            return SetDeviceTrigger();
+        }
 
         switch (triggerType)
         {
@@ -494,29 +506,26 @@ class Program
                     var condition = Console.ReadLine();
 
                     Console.WriteLine("\nHodnota (W): ");
-                    var value = Console.ReadLine();
-
-                    return condition switch
+                    if (!int.TryParse(Console.ReadLine(), out int value))
                     {
-                        "1" => () =>
-                        {
-                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
-                            return device != null && device.PowerConsumption > int.Parse(value ?? "0");
-                        }
-                        ,
-                        "2" => () =>
-                        {
-                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
-                            return device != null && device.PowerConsumption < int.Parse(value ?? "0");
-                        }
-                        ,
-                        "3" => () =>
-                        {
-                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
-                            return device != null && device.PowerConsumption == int.Parse(value ?? "0");
-                        }
-                        ,
-                        _ => () => false
+                        Console.WriteLine("Neplatná hodnota!");
+                        return SetDeviceTrigger();
+                    }
+
+                    var comparison = ParseComparison(condition);
+                    if (comparison == RuleComparisonType.None)
+                    {
+                        Console.WriteLine("Neplatná volba!");
+                        return SetDeviceTrigger();
+                    }
+
+                    return new RuleTriggerDefinition
+                    {
+                        TargetType = RuleTargetType.Device,
+                        Metric = RuleTriggerMetric.PowerConsumption,
+                        Comparison = comparison,
+                        DeviceId = deviceId,
+                        Value = value
                     };
                 }
             case "2": // State
@@ -533,13 +542,22 @@ class Program
                         "1" => DeviceState.Zapnuto,
                         "2" => DeviceState.Vypnuto,
                         "3" => DeviceState.Deaktivovano,
-                        _ => DeviceState.Vypnuto
+                        _ => (DeviceState?)null
                     };
 
-                    return () =>
+                    if (!targetState.HasValue)
                     {
-                        var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
-                        return device != null && device.State == targetState;
+                        Console.WriteLine("Neplatná volba!");
+                        return SetDeviceTrigger();
+                    }
+
+                    return new RuleTriggerDefinition
+                    {
+                        TargetType = RuleTargetType.Device,
+                        Metric = RuleTriggerMetric.State,
+                        Comparison = RuleComparisonType.Equal,
+                        DeviceId = deviceId,
+                        TargetState = targetState.Value
                     };
                 }
             case "3": // Current value
@@ -551,29 +569,26 @@ class Program
                     var condition = Console.ReadLine();
 
                     Console.WriteLine("\nHodnota: ");
-                    var value = Console.ReadLine();
-
-                    return condition switch
+                    if (!int.TryParse(Console.ReadLine(), out int value))
                     {
-                        "1" => () =>
-                        {
-                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
-                            return device != null && device.CurrentValue.HasValue && device.CurrentValue.Value > int.Parse(value ?? "0");
-                        }
-                        ,
-                        "2" => () =>
-                        {
-                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
-                            return device != null && device.CurrentValue.HasValue && device.CurrentValue.Value < int.Parse(value ?? "0");
-                        }
-                        ,
-                        "3" => () =>
-                        {
-                            var device = db.Devices.FirstOrDefault(d => d.Id == int.Parse(deviceIdStr ?? "0"));
-                            return device != null && device.CurrentValue.HasValue && device.CurrentValue.Value == int.Parse(value ?? "0");
-                        }
-                        ,
-                        _ => () => false
+                        Console.WriteLine("Neplatná hodnota!");
+                        return SetDeviceTrigger();
+                    }
+
+                    var comparison = ParseComparison(condition);
+                    if (comparison == RuleComparisonType.None)
+                    {
+                        Console.WriteLine("Neplatná volba!");
+                        return SetDeviceTrigger();
+                    }
+
+                    return new RuleTriggerDefinition
+                    {
+                        TargetType = RuleTargetType.Device,
+                        Metric = RuleTriggerMetric.CurrentValue,
+                        Comparison = comparison,
+                        DeviceId = deviceId,
+                        Value = value
                     };
                 }
             default:
@@ -584,14 +599,18 @@ class Program
         }
     }
 
-    private static Func<bool> SetRoomTrigger()
+    private static RuleTriggerDefinition SetRoomTrigger()
     {
         Console.WriteLine("\nMístnosti:");
         foreach (var r in db.Rooms)
             Console.WriteLine($"{r.Id}. {r.Name}");
 
         Console.Write("\nID místnosti: ");
-        var roomIdStr = Console.ReadLine();
+        if (!int.TryParse(Console.ReadLine(), out int roomId))
+        {
+            Console.WriteLine("Neplatné ID místnosti!");
+            return SetRoomTrigger();
+        }
 
         Console.WriteLine("\nTyp triggeru:");
         Console.WriteLine("1. Celková spotřeba místnosti");
@@ -611,29 +630,26 @@ class Program
                     var condition = Console.ReadLine();
 
                     Console.WriteLine("\nHodnota (W): ");
-                    var value = Console.ReadLine();
-
-                    return condition switch
+                    if (!int.TryParse(Console.ReadLine(), out int value))
                     {
-                        "1" => () =>
-                        {
-                            var totalPower = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0")).Sum(d => d.PowerConsumption);
-                            return totalPower > int.Parse(value ?? "0");
-                        }
-                        ,
-                        "2" => () =>
-                        {
-                            var totalPower = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0")).Sum(d => d.PowerConsumption);
-                            return totalPower < int.Parse(value ?? "0");
-                        }
-                        ,
-                        "3" => () =>
-                        {
-                            var totalPower = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0")).Sum(d => d.PowerConsumption);
-                            return totalPower == int.Parse(value ?? "0");
-                        }
-                        ,
-                        _ => () => false
+                        Console.WriteLine("Neplatná hodnota!");
+                        return SetRoomTrigger();
+                    }
+
+                    var comparison = ParseComparison(condition);
+                    if (comparison == RuleComparisonType.None)
+                    {
+                        Console.WriteLine("Neplatná volba!");
+                        return SetRoomTrigger();
+                    }
+
+                    return new RuleTriggerDefinition
+                    {
+                        TargetType = RuleTargetType.Room,
+                        Metric = RuleTriggerMetric.PowerConsumption,
+                        Comparison = comparison,
+                        RoomId = roomId,
+                        Value = value
                     };
                 }
             case "2": // Active devices count
@@ -645,36 +661,36 @@ class Program
                     var condition = Console.ReadLine();
 
                     Console.WriteLine("\nPočet zařízení: ");
-                    var value = Console.ReadLine();
-
-                    return condition switch
+                    if (!int.TryParse(Console.ReadLine(), out int value))
                     {
-                        "1" => () =>
-                        {
-                            var count = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0") && d.State == DeviceState.Zapnuto).Count();
-                            return count > int.Parse(value ?? "0");
-                        }
-                        ,
-                        "2" => () =>
-                        {
-                            var count = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0") && d.State == DeviceState.Zapnuto).Count();
-                            return count < int.Parse(value ?? "0");
-                        }
-                        ,
-                        "3" => () =>
-                        {
-                            var count = db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0") && d.State == DeviceState.Zapnuto).Count();
-                            return count == int.Parse(value ?? "0");
-                        }
-                        ,
-                        _ => () => false
+                        Console.WriteLine("Neplatná hodnota!");
+                        return SetRoomTrigger();
+                    }
+
+                    var comparison = ParseComparison(condition);
+                    if (comparison == RuleComparisonType.None)
+                    {
+                        Console.WriteLine("Neplatná volba!");
+                        return SetRoomTrigger();
+                    }
+
+                    return new RuleTriggerDefinition
+                    {
+                        TargetType = RuleTargetType.Room,
+                        Metric = RuleTriggerMetric.ActiveDeviceCount,
+                        Comparison = comparison,
+                        RoomId = roomId,
+                        Value = value
                     };
                 }
             case "3": // All devices off
                 {
-                    return () =>
+                    return new RuleTriggerDefinition
                     {
-                        return db.Devices.Where(d => d.RoomId == int.Parse(roomIdStr ?? "0")).All(d => d.State == DeviceState.Vypnuto);
+                        TargetType = RuleTargetType.Room,
+                        Metric = RuleTriggerMetric.AllDevicesOff,
+                        Comparison = RuleComparisonType.None,
+                        RoomId = roomId
                     };
                 }
             default:
@@ -685,7 +701,7 @@ class Program
         }
     }
 
-    private static Func<bool> SetHouseholdTrigger()
+    private static RuleTriggerDefinition SetHouseholdTrigger()
     {
         Console.WriteLine("\nTyp triggeru:");
         Console.WriteLine("1. Celková spotřeba domácnosti");
@@ -705,14 +721,25 @@ class Program
                     var condition = Console.ReadLine();
 
                     Console.WriteLine("\nHodnota (W): ");
-                    var value = Console.ReadLine();
-
-                    return condition switch
+                    if (!int.TryParse(Console.ReadLine(), out int value))
                     {
-                        "1" => () => db.Devices.Sum(d => d.PowerConsumption) > int.Parse(value ?? "0"),
-                        "2" => () => db.Devices.Sum(d => d.PowerConsumption) < int.Parse(value ?? "0"),
-                        "3" => () => db.Devices.Sum(d => d.PowerConsumption) == int.Parse(value ?? "0"),
-                        _ => () => false
+                        Console.WriteLine("Neplatná hodnota!");
+                        return SetHouseholdTrigger();
+                    }
+
+                    var comparison = ParseComparison(condition);
+                    if (comparison == RuleComparisonType.None)
+                    {
+                        Console.WriteLine("Neplatná volba!");
+                        return SetHouseholdTrigger();
+                    }
+
+                    return new RuleTriggerDefinition
+                    {
+                        TargetType = RuleTargetType.Household,
+                        Metric = RuleTriggerMetric.PowerConsumption,
+                        Comparison = comparison,
+                        Value = value
                     };
                 }
             case "2": // Total active devices
@@ -724,24 +751,233 @@ class Program
                     var condition = Console.ReadLine();
 
                     Console.WriteLine("\nPočet zařízení: ");
-                    var value = Console.ReadLine();
-
-                    return condition switch
+                    if (!int.TryParse(Console.ReadLine(), out int value))
                     {
-                        "1" => () => db.Devices.Count(d => d.State == DeviceState.Zapnuto) > int.Parse(value ?? "0"),
-                        "2" => () => db.Devices.Count(d => d.State == DeviceState.Zapnuto) < int.Parse(value ?? "0"),
-                        "3" => () => db.Devices.Count(d => d.State == DeviceState.Zapnuto) == int.Parse(value ?? "0"),
-                        _ => () => false
+                        Console.WriteLine("Neplatná hodnota!");
+                        return SetHouseholdTrigger();
+                    }
+
+                    var comparison = ParseComparison(condition);
+                    if (comparison == RuleComparisonType.None)
+                    {
+                        Console.WriteLine("Neplatná volba!");
+                        return SetHouseholdTrigger();
+                    }
+
+                    return new RuleTriggerDefinition
+                    {
+                        TargetType = RuleTargetType.Household,
+                        Metric = RuleTriggerMetric.ActiveDeviceCount,
+                        Comparison = comparison,
+                        Value = value
                     };
                 }
             case "3": // All devices off
                 {
-                    return () => db.Devices.All(d => d.State == DeviceState.Vypnuto);
+                    return new RuleTriggerDefinition
+                    {
+                        TargetType = RuleTargetType.Household,
+                        Metric = RuleTriggerMetric.AllDevicesOff,
+                        Comparison = RuleComparisonType.None
+                    };
                 }
             default:
                 {
                     Console.WriteLine("Neplatná volba!");
                     return SetHouseholdTrigger();
+                }
+        }
+    }
+
+    private static RuleComparisonType ParseComparison(string? condition)
+    {
+        return condition switch
+        {
+            "1" => RuleComparisonType.GreaterThan,
+            "2" => RuleComparisonType.LessThan,
+            "3" => RuleComparisonType.Equal,
+            _ => RuleComparisonType.None
+        };
+    }
+
+    private static bool CompareValues(int left, RuleComparisonType comparison, int? right)
+    {
+        if (!right.HasValue)
+        {
+            return false;
+        }
+
+        return comparison switch
+        {
+            RuleComparisonType.GreaterThan => left > right.Value,
+            RuleComparisonType.LessThan => left < right.Value,
+            RuleComparisonType.Equal => left == right.Value,
+            _ => false
+        };
+    }
+
+    private static bool EvaluateRuleTrigger(Rule rule)
+    {
+        var trigger = rule.TriggerDefinition;
+        if (trigger == null)
+        {
+            return false;
+        }
+
+        switch (trigger.TargetType)
+        {
+            case RuleTargetType.Device:
+                {
+                    if (!trigger.DeviceId.HasValue)
+                    {
+                        return false;
+                    }
+
+                    var device = db.Devices.FirstOrDefault(d => d.Id == trigger.DeviceId.Value);
+                    if (device == null)
+                    {
+                        return false;
+                    }
+
+                    return trigger.Metric switch
+                    {
+                        RuleTriggerMetric.PowerConsumption => CompareValues(device.PowerConsumption, trigger.Comparison, trigger.Value),
+                        RuleTriggerMetric.State => trigger.TargetState.HasValue && device.State == trigger.TargetState.Value,
+                        RuleTriggerMetric.CurrentValue => device.CurrentValue.HasValue && CompareValues(device.CurrentValue.Value, trigger.Comparison, trigger.Value),
+                        _ => false
+                    };
+                }
+            case RuleTargetType.Room:
+                {
+                    if (!trigger.RoomId.HasValue)
+                    {
+                        return false;
+                    }
+
+                    var roomDevices = db.Devices.Where(d => d.RoomId == trigger.RoomId.Value).ToList();
+
+                    return trigger.Metric switch
+                    {
+                        RuleTriggerMetric.PowerConsumption => CompareValues(roomDevices.Sum(d => d.PowerConsumption), trigger.Comparison, trigger.Value),
+                        RuleTriggerMetric.ActiveDeviceCount => CompareValues(roomDevices.Count(d => d.State == DeviceState.Zapnuto), trigger.Comparison, trigger.Value),
+                        RuleTriggerMetric.AllDevicesOff => roomDevices.All(d => d.State == DeviceState.Vypnuto),
+                        _ => false
+                    };
+                }
+            case RuleTargetType.Household:
+                {
+                    return trigger.Metric switch
+                    {
+                        RuleTriggerMetric.PowerConsumption => CompareValues(db.Devices.Sum(d => d.PowerConsumption), trigger.Comparison, trigger.Value),
+                        RuleTriggerMetric.ActiveDeviceCount => CompareValues(db.Devices.Count(d => d.State == DeviceState.Zapnuto), trigger.Comparison, trigger.Value),
+                        RuleTriggerMetric.AllDevicesOff => db.Devices.All(d => d.State == DeviceState.Vypnuto),
+                        _ => false
+                    };
+                }
+            default:
+                return false;
+        }
+    }
+
+    private static void ExecuteRuleAction(Rule rule)
+    {
+        var action = rule.ActionDefinition;
+        if (action == null)
+        {
+            return;
+        }
+
+        switch (action.ActionType)
+        {
+            case RuleActionType.TurnOnDevice:
+                {
+                    if (!action.DeviceId.HasValue)
+                    {
+                        return;
+                    }
+
+                    var device = db.Devices.FirstOrDefault(d => d.Id == action.DeviceId.Value);
+                    if (device != null)
+                    {
+                        device.State = DeviceState.Zapnuto;
+                        Console.WriteLine($"🔔 Pravidlo: {device.Name} zapnuto");
+                    }
+                    break;
+                }
+            case RuleActionType.TurnOffDevice:
+                {
+                    if (!action.DeviceId.HasValue)
+                    {
+                        return;
+                    }
+
+                    var device = db.Devices.FirstOrDefault(d => d.Id == action.DeviceId.Value);
+                    if (device != null)
+                    {
+                        device.State = DeviceState.Vypnuto;
+                        Console.WriteLine($"🔔 Pravidlo: {device.Name} vypnuto");
+                    }
+                    break;
+                }
+            case RuleActionType.DeactivateDevice:
+                {
+                    if (!action.DeviceId.HasValue)
+                    {
+                        return;
+                    }
+
+                    var device = db.Devices.FirstOrDefault(d => d.Id == action.DeviceId.Value);
+                    if (device != null)
+                    {
+                        device.State = DeviceState.Deaktivovano;
+                        Console.WriteLine($"🔔 Pravidlo: {device.Name} deaktivováno");
+                    }
+                    break;
+                }
+            case RuleActionType.SetDeviceValue:
+                {
+                    if (!action.DeviceId.HasValue || !action.Value.HasValue)
+                    {
+                        return;
+                    }
+
+                    var device = db.Devices.FirstOrDefault(d => d.Id == action.DeviceId.Value);
+                    if (device != null)
+                    {
+                        device.CurrentValue = action.Value.Value;
+                        Console.WriteLine($"🔔 Pravidlo: {device.Name} nastaveno na {action.Value.Value}");
+                    }
+                    break;
+                }
+            case RuleActionType.TurnOnAllDevicesInRoom:
+                {
+                    if (!action.RoomId.HasValue)
+                    {
+                        return;
+                    }
+
+                    var devicesInRoom = db.Devices.Where(d => d.RoomId == action.RoomId.Value).ToList();
+                    foreach (var device in devicesInRoom)
+                    {
+                        device.State = DeviceState.Zapnuto;
+                    }
+                    Console.WriteLine($"🔔 Pravidlo: Všechna zařízení v místnosti zapnuta ({devicesInRoom.Count} zařízení)");
+                    break;
+                }
+            case RuleActionType.TurnOffAllDevicesInRoom:
+                {
+                    if (!action.RoomId.HasValue)
+                    {
+                        return;
+                    }
+
+                    var devicesInRoom = db.Devices.Where(d => d.RoomId == action.RoomId.Value).ToList();
+                    foreach (var device in devicesInRoom)
+                    {
+                        device.State = DeviceState.Vypnuto;
+                    }
+                    Console.WriteLine($"🔔 Pravidlo: Všechna zařízení v místnosti vypnuta ({devicesInRoom.Count} zařízení)");
+                    break;
                 }
         }
     }
@@ -1025,7 +1261,7 @@ class Program
         };
 
         db.Rooms.Add(room);
-        //db.Save(); // Uložíme změnu
+        db.Save(); // Uložíme změnu
 
         Console.WriteLine($"✓ Místnost '{name}' přidána!");
     }
@@ -1106,7 +1342,7 @@ class Program
         };
 
         db.Devices.Add(device);
-        //db.Save(); // Uložíme změnu
+        db.Save(); // Uložíme změnu
 
         Console.WriteLine($"✓ Zařízení '{device.Name}' přidáno!");
     }
@@ -1167,19 +1403,19 @@ class Program
             case "1":
                 device.State = DeviceState.Zapnuto;
                 Console.WriteLine($"✓ {device.Name} ZAPNUTO");
-                //db.Save();
+                db.Save();
                 break;
             case "2":
                 device.State = DeviceState.Vypnuto;
                 Console.WriteLine($"✓ {device.Name} VYPNUTO");
-                //db.Save();
+                db.Save();
                 break;
             case "3":
                 if (currentUser!.Role == UserRole.Spravce)
                 {
                     device.State = DeviceState.Deaktivovano;
                     Console.WriteLine($"✓ {device.Name} DEAKTIVOVÁNO");
-                    //db.Save();
+                    db.Save();
                 }
                 else
                 {
@@ -1253,7 +1489,7 @@ class Program
         };
 
         db.Users.Add(newUser);
-        //db.Save();
+        db.Save();
 
         Console.WriteLine($"✓ Uživatel '{newUser.Username}' vytvořen!");
     }
