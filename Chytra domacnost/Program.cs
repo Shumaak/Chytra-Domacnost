@@ -17,10 +17,8 @@ class Program
         Console.WriteLine("║  SIMULÁTOR CHYTRÉ DOMÁCNOSTI           ║");
         Console.WriteLine("╚════════════════════════════════════════╝\n");
 
-        // Načtení dat z JSON souboru
         InitializeDatabase();
 
-        // Hlavní smyčka programu
         while (true)
         {
             if (currentUser == null)
@@ -33,6 +31,52 @@ class Program
             }
         }
     }
+    static void StartSimulationLoop()
+    {
+        Task.Run(async () =>
+        {
+            var rng = new Random();
+            while (true)
+            {
+                await Task.Delay(2500);
+
+                lock (db)
+                {
+                    foreach (var device in db.Devices)
+                    {
+                        if (device.State != DeviceState.Zapnuto) continue;
+
+                        switch (device.Type)
+                        {
+                            case DeviceType.Termostat:
+                                device.CurrentValue = (device.CurrentValue ?? 20) + rng.Next(-1, 2);
+                                break;
+                            case DeviceType.Senzor:
+                                device.CurrentValue = rng.Next(0, 101);
+                                break;
+                            case DeviceType.Svetlo:
+                                device.PowerConsumption = Math.Max(1, device.PowerConsumption + rng.Next(-2, 3));
+                                break;
+                        }
+                    }
+
+                    foreach (var rule in db.Rules)
+                    {
+                        try
+                        {
+                            if (EvaluateRuleTrigger(rule))
+                            {
+                                ExecuteRuleAction(rule);
+                            }
+                        }
+                        catch { }
+                    }
+
+                    db.Save();
+                }
+            }
+        });
+    }
 
     static void InitializeDatabase()
     {
@@ -40,7 +84,6 @@ class Program
 
         db = JsonDatabase.Load();
 
-        // Pokud je databáze prázdná, vytvoříme testovací data
         if (db.Users.Count == 0)
         {
             Console.WriteLine("Vytvářím testovací data...");
@@ -51,6 +94,8 @@ class Program
         {
             Console.WriteLine($"✓ Načteno: {db.Users.Count} uživatelů, {db.Rooms.Count} místností, {db.Devices.Count} zařízení\n");
         }
+
+        StartSimulationLoop();
     }
 
     static void ShowLoginMenu()
@@ -105,7 +150,7 @@ class Program
         {
             currentUser = user;
             user.LastLogin = DateTime.Now;
-            db.Save(); // Uložíme změnu
+            db.Save();
 
             Console.WriteLine($"\n✓ Přihlášen jako {user.Username} ({user.Role})");
         }
@@ -900,7 +945,6 @@ class Program
                     if (device != null)
                     {
                         device.State = DeviceState.Zapnuto;
-                        Console.WriteLine($"🔔 Pravidlo: {device.Name} zapnuto");
                     }
                     break;
                 }
@@ -915,7 +959,6 @@ class Program
                     if (device != null)
                     {
                         device.State = DeviceState.Vypnuto;
-                        Console.WriteLine($"🔔 Pravidlo: {device.Name} vypnuto");
                     }
                     break;
                 }
@@ -930,7 +973,6 @@ class Program
                     if (device != null)
                     {
                         device.State = DeviceState.Deaktivovano;
-                        Console.WriteLine($"🔔 Pravidlo: {device.Name} deaktivováno");
                     }
                     break;
                 }
@@ -945,7 +987,6 @@ class Program
                     if (device != null)
                     {
                         device.CurrentValue = action.Value.Value;
-                        Console.WriteLine($"🔔 Pravidlo: {device.Name} nastaveno na {action.Value.Value}");
                     }
                     break;
                 }
@@ -961,7 +1002,6 @@ class Program
                     {
                         device.State = DeviceState.Zapnuto;
                     }
-                    Console.WriteLine($"🔔 Pravidlo: Všechna zařízení v místnosti zapnuta ({devicesInRoom.Count} zařízení)");
                     break;
                 }
             case RuleActionType.TurnOffAllDevicesInRoom:
@@ -976,7 +1016,6 @@ class Program
                     {
                         device.State = DeviceState.Vypnuto;
                     }
-                    Console.WriteLine($"🔔 Pravidlo: Všechna zařízení v místnosti vypnuta ({devicesInRoom.Count} zařízení)");
                     break;
                 }
         }
